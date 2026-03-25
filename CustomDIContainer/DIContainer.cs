@@ -1,22 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using System.Reflection;
 
 namespace CustomDIContainer
 {
-    using System.Reflection;
-
     public class DIContainer
     {
-        private readonly List<ServiceDescriptor> _services = new();
+        private readonly Dictionary<Type, ServiceDescriptor> _services = new();
+        private readonly Dictionary<Type, object> _singletonCache = new();
 
         // Register services
         public void Register<TService, TImplementation>(ServiceLifetime lifetime)
+            where TImplementation : TService
         {
-            _services.Add(new ServiceDescriptor(
+            var descriptor = new ServiceDescriptor(
                 typeof(TService),
                 typeof(TImplementation),
-                lifetime));
+                lifetime);
+
+            _services[typeof(TService)] = descriptor;
         }
 
         // Resolve generic
@@ -28,40 +31,41 @@ namespace CustomDIContainer
         // Core resolve logic
         private object Resolve(Type serviceType)
         {
-            var descriptor = _services.FirstOrDefault(x => x.ServiceType == serviceType);
-
-            if (descriptor == null)
-                throw new Exception($"Service {serviceType.Name} not registered");
+            if (!_services.TryGetValue(serviceType, out var descriptor))
+                throw new InvalidOperationException($"Service '{serviceType.Name}' not registered");
 
             // Singleton handling
-            if (descriptor.Lifetime == ServiceLifetime.Singleton && descriptor.Instance != null)
+            if (descriptor.Lifetime == ServiceLifetime.Singleton)
             {
-                return descriptor.Instance;
+                if (!_singletonCache.TryGetValue(serviceType, out var instance))
+                {
+                    instance = CreateInstance(descriptor.ImplementationType);
+                    _singletonCache[serviceType] = instance;
+                }
+                return instance;
             }
 
-            var implementationType = descriptor.ImplementationType;
+            // Transient
+            return CreateInstance(descriptor.ImplementationType);
+        }
 
-            // Constructor injection
+        private object CreateInstance(Type implementationType)
+        {
+            // Constructor selection (greedy)
             var constructor = implementationType
-                                .GetConstructors()
-                                .OrderByDescending(c => c.GetParameters().Length)
-                                .FirstOrDefault()
-                                ?? throw new InvalidOperationException(
-                                    $"No public constructor found on '{implementationType.Name}'.");
+                .GetConstructors()
+                .OrderByDescending(c => c.GetParameters().Length)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException(
+                    $"No public constructor found on '{implementationType.Name}'.");
 
-            var parameters = constructor.GetParameters()
+            // Resolve parameters recursively
+            var parameters = constructor
+                .GetParameters()
                 .Select(p => Resolve(p.ParameterType))
                 .ToArray();
 
-            var instance = Activator.CreateInstance(implementationType, parameters);
-
-            // Store singleton
-            if (descriptor.Lifetime == ServiceLifetime.Singleton)
-            {
-                descriptor.Instance = instance;
-            }
-
-            return instance;
+            return constructor.Invoke(parameters);
         }
     }
 }

@@ -68,7 +68,7 @@ namespace CustomDIContainer.Tests
         {
             var container = new DIContainer();
 
-            Assert.Throws<Exception>(() => container.Resolve<IEmailSender>());
+            Assert.Throws<InvalidOperationException>(() => container.Resolve<IEmailSender>());
         }
     }
 }
