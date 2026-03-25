@@ -9,7 +9,6 @@ namespace CustomDIContainer
         public Type ServiceType { get; set; }
         public Type ImplementationType { get; set; }
         public ServiceLifetime Lifetime { get; set; }
-        public object Instance { get; set; }
 
         public ServiceDescriptor(Type serviceType, Type implementationType, ServiceLifetime lifetime)
         {
