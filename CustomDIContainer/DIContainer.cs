@@ -42,7 +42,12 @@ namespace CustomDIContainer
             var implementationType = descriptor.ImplementationType;
 
             // Constructor injection
-            var constructor = implementationType.GetConstructors().First();
+            var constructor = implementationType
+                                .GetConstructors()
+                                .OrderByDescending(c => c.GetParameters().Length)
+                                .FirstOrDefault()
+                                ?? throw new InvalidOperationException(
+                                    $"No public constructor found on '{implementationType.Name}'.");
 
             var parameters = constructor.GetParameters()
                 .Select(p => Resolve(p.ParameterType))
