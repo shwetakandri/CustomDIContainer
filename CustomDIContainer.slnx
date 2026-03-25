@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="CustomDIContainer.Tests/CustomDIContainer.Tests.csproj" />
+  <Project Path="CustomDIContainer/CustomDIContainer.csproj" />
+</Solution>
